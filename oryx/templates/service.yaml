@@ -8,24 +8,39 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - name: rtmp
-      port: {{ .Values.service.rtmp }}
+      port: {{ .Values.service.rtmp.port | default 31935 }}
       targetPort: 1935
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.rtmp.nodePort }}
+      nodePort: {{ .Values.service.rtmp.nodePort }}
+      {{- end }}
       protocol: TCP
     - name: http
-      port: {{ .Values.service.http }}
+      port: {{ .Values.service.http.port | default 30080 }}
       targetPort: 2022
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.http.nodePort }}
+      nodePort: {{ .Values.service.http.nodePort }}
+      {{- end }}
       protocol: TCP
     - name: https
-      port: {{ .Values.service.https }}
+      port: {{ .Values.service.https.port | default 30443 }}
       targetPort: 2443
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.https.nodePort }}
+      nodePort: {{ .Values.service.https.nodePort }}
+      {{- end }}
       protocol: TCP
     - name: srt
-      port: {{ .Values.service.srt }}
+      port: {{ .Values.service.srt.port | default 32080 }}
       targetPort: 10080
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.srt.nodePort }}
+      nodePort: {{ .Values.service.srt.nodePort }}
+      {{- end }}
       protocol: UDP
     - name: rtc
-      port: {{ .Values.service.rtc }}
+      port: {{ .Values.service.rtc.port | default 32000 }}
       targetPort: 8000
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.rtc.nodePort }}
+      nodePort: {{ .Values.service.rtc.nodePort }}
+      {{- end }}
       protocol: UDP
   selector:
     {{- include "srs.selectorLabels" . | nindent 4 }}
