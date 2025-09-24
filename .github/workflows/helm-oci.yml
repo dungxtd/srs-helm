@@ -1,0 +1,79 @@
+name: "Package and Push Helm Charts to GitHub OCI Registry"
+
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+
+jobs:
+  package-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Extract tag version
+        id: vars
+        run: |
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v(.+)$ ]]; then
+            VERSION=${BASH_REMATCH[1]}
+          else
+            VERSION="latest"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+      
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Package and Push oryx Chart
+        run: |
+          # Update chart version if this is a tagged release
+          if [[ "${{ steps.vars.outputs.VERSION }}" != "latest" ]]; then
+            sed -i "s/^version:.*/version: ${{ steps.vars.outputs.VERSION }}/" oryx/Chart.yaml
+          fi
+          
+          # Package the chart
+          helm package oryx/ --destination ./packages/
+          
+          # Push to OCI registry
+          CHART_VERSION=$(helm show chart oryx/ | grep '^version:' | awk '{print $2}')
+          helm push packages/oryx-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/helm
+      
+      - name: Package and Push srs-server Chart
+        run: |
+          # Update chart version if this is a tagged release
+          if [[ "${{ steps.vars.outputs.VERSION }}" != "latest" ]]; then
+            sed -i "s/^version:.*/version: ${{ steps.vars.outputs.VERSION }}/" srs-server/Chart.yaml
+          fi
+          
+          # Package the chart
+          helm package srs-server/ --destination ./packages/
+          
+          # Push to OCI registry
+          CHART_VERSION=$(helm show chart srs-server/ | grep '^version:' | awk '{print $2}')
+          helm push packages/srs-server-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/helm
+      
+      - name: Create packages directory
+        run: mkdir -p packages
+        
+      - name: Upload chart packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-charts
+          path: packages/*.tgz
+          retention-days: 30
