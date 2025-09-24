@@ -2,13 +2,21 @@ name: "Package and Push Helm Charts to GitHub OCI Registry"
 
 on:
   push:
+    branches:
+      - main
     tags:
       - v*
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
   workflow_dispatch:
 
 jobs:
   package-and-push:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     permissions:
       contents: read
       packages: write
